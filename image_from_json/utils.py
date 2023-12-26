@@ -138,18 +138,113 @@ def generate_video_from_images(image_directory, output_video_file, fps=1):
     # Release the video writer
     video_writer.release()
 
-def get_pages_from_frame(frame_array):
+# def get_pages_from_frame(frame_array):
     
-    # Creating the chessboard pattern arrays
-    page_0 = np.zeros((12, 32))
-    page_1 = np.zeros((12, 32))
+#     # Creating the chessboard pattern arrays
+#     page_0 = np.zeros((12, 32))
+#     page_1 = np.zeros((12, 32))
 
-    # Iterate over the rows and collumns of the frame, filling the pages
+#     # Iterate over the rows and collumns of the frame, filling the pages
+#     for row in range(24):
+#         for col in range(32):
+#             if (row + col) % 2 == 0:
+#                 page_0[row // 2][col] = frame_array[row][col]
+#             else:
+#                 page_1[row // 2][col] = frame_array[row][col]
+
+#     return page_0, page_1
+
+def get_pages_from_frame(frame_array, compression_direction='horizontal'):
+
+    if compression_direction == 'vertical':
+        # Creating the chessboard pattern arrays
+        page_0 = np.zeros((12, 32))
+        page_1 = np.zeros((12, 32))
+
+        # Iterate over the rows and collumns of the frame, filling the pages
+        for row in range(24):
+            for col in range(32):
+                if (row + col) % 2 == 0:
+                    page_0[row // 2][col] = frame_array[row][col]
+                else:
+                    page_1[row // 2][col] = frame_array[row][col]
+
+    elif compression_direction == 'horizontal':
+        # Creating the chessboard pattern arrays
+        page_0 = np.zeros((24, 16))
+        page_1 = np.zeros((24, 16))
+
+        # Iterate over the rows and collumns of the frame, filling the pages
+        for row in range(24):
+            for col in range(32):
+                if (row + col) % 2 == 0:
+                    page_0[row][col // 2] = frame_array[row][col]
+                else:
+                    page_1[row][col // 2] = frame_array[row][col]
+
+    else:
+        raise ValueError("Invalid compression direction. Valid values are 'horizontal' and 'vertical'.")
+    
+    return page_0, page_1
+
+def get_frame_from_pages(page_0_array, page_1_array, compression_direction='horizontal'):
+        
+        # Creating the chessboard pattern arrays
+        frame_array = np.zeros((24, 32))
+    
+        if compression_direction == 'vertical':
+            # Iterate over the rows and collumns of the frame, filling the pages
+            for row in range(24):
+                for col in range(32):
+                    if (row + col) % 2 == 0:
+                        frame_array[row][col] = page_0_array[row // 2][col]
+                    else:
+                        frame_array[row][col] = page_1_array[row // 2][col]
+    
+        elif compression_direction == 'horizontal':
+            # Iterate over the rows and collumns of the frame, filling the pages
+            for row in range(24):
+                for col in range(32):
+                    if (row + col) % 2 == 0:
+                        frame_array[row][col] = page_0_array[row][col // 2]
+                    else:
+                        frame_array[row][col] = page_1_array[row][col // 2]
+    
+        else:
+            raise ValueError("Invalid compression direction. Valid values are 'horizontal' and 'vertical'.")
+        
+        return frame_array
+
+def interpolate_black_pixels(pseudoframe):
+    
+    # Iterate over the rows and collumns of the pseudoframe
     for row in range(24):
         for col in range(32):
-            if (row + col) % 2 == 0:
-                page_0[row // 2][col] = frame_array[row][col]
-            else:
-                page_1[row // 2][col] = frame_array[row][col]
+            if pseudoframe[row][col] == 0:
 
-    return page_0, page_1
+                surrounding_pixels = []
+
+                # Get the surrounding pixels, if they exist
+                if row > 0:
+                    surrounding_pixels.append(pseudoframe[row - 1][col])
+
+                if row < 23:
+                    surrounding_pixels.append(pseudoframe[row + 1][col])
+
+                if col > 0:
+                    surrounding_pixels.append(pseudoframe[row][col - 1])
+
+                if col < 31:
+                    surrounding_pixels.append(pseudoframe[row][col + 1])
+
+                # If there are no surrounding pixels, skip
+                if len(surrounding_pixels) == 0:
+                    continue
+                else:
+                    # Calculate the mean of the surrounding pixels
+                    mean = np.mean(surrounding_pixels)
+
+                    # Assign the mean to the current pixel
+                    pseudoframe[row][col] = mean
+
+    return pseudoframe
